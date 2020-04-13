@@ -48,6 +48,7 @@ class IOT_Device:
     #Sets this device as a broker
     def setAsBroker(self):
         self.isBroker = True
+        #TODO Noah will add functionality for the device to be added to the brokers list
 
     #Sets a reference to the network so that in-range calculations can be made
     def setNetwork(self, network_in):
@@ -69,7 +70,27 @@ class IOT_Device:
     def sendMessage(self, message):
         #TODO implemented in another python file to handle network issues
         print("Sending message to broker")
+        #If the message does not receive confirmation from the broker after a delay, run the election for a new broker
 
+    #Function to handle the receipt of a message
+    def receiveMessage(self, message):
+        #TODO implement handling based on if a broker or not
+        print("Received " + message)
+
+    #TODO here is where our core algorithm should run
+    #The flag will be true if the device is a new device attempting to find a broker
+    def startElection(self, flag):
+        print("Electing new broker")
+        #If the flag is true the device should broadcast searching for a broker with its ID
+            #All broker devices that are in range will return a message entitled (IN-RANGE:ID:BROKER)
+                #Here the ID is the ID of this device, in case multiple elections are running concurrently
+                #Upon receiving an in-range ID, this device will set the BROKER to be this devices broker
+                #No election needs to be run in this case
+        #If the broadcast fails to find a broker in range or the flag is false, run the election algorithm
+            #This version of the election algorithm should elevate another node to broker that is in range of this node
+            #Find an in-range device that contacts the largest number of devices? and has contact to another broker
+            #Verify against the main broker to see if there are out of range devices and attempt to find a device that can reach them
+    
 
 #TODO ignore this for now, I will move it to another file
 #This class simulates an entire network
