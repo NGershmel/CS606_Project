@@ -19,3 +19,7 @@ def dropMessage(threshold):
 #Simulates randomly losing or corrupting data over a network
 def corrupt(message):
     return message
+
+#Computes the strength of a signal between 2 devices
+def signalStrength(deviceOne, deviceTwo):
+    return 1
