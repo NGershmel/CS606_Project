@@ -23,7 +23,7 @@ class IOT_Device:
     #Reference to the broker for this IOT device
     isBroker = False
 
-    #This list should not be used unless the device is promoted to a broker
+    #This list should be used to track what messages have been given an OK
     #A 2D array of messages
         #Each message is an array of strings in the form:
         #[deviceID, deviceID/-1, type/-1, message_data]
@@ -58,11 +58,11 @@ class IOT_Device:
     #Additionally, the broker will be where this device retrieves messages from
     def setBroker(self, broker_in):
         self.broker = broker_in
+        self.broker.deviceList.append([(str(self.ID), self)])
 
     #Sets this device as a broker
     def setAsBroker(self):
         self.isBroker = True
-        #TODO Noah will add functionality for the devices to be added to the brokers list
 
     #Sets a reference to the network so that in-range calculations can be made
     def setNetwork(self, network_in):
@@ -78,6 +78,32 @@ class IOT_Device:
         messageArray = [str(self.ID), str(deviceID), "NO_TYPE", message]
         self.network.sendMessage(messageArray)
 
+    #Removes a message from the list awaiting responses
+    def clearFromQueue(self, messageData):
+        for m in self.messagesQueue:
+            if m == messageData:
+                self.messagesQueue.remove(messageData)
+
+    #Simulates detecting a downed broker
+    def allOk(self):
+        if len(self.messagesQueue) > 0:
+            return False
+        return True
+
+    #Simulates a device publishing a message to a topic
+    def publishToTopic(self, topic, message):
+        messageArray = [str(self.ID), topic, "PUBLISH", message]
+        self.network.sendMessage(self, self.broker, messageArray)
+        time.sleep(1)
+        if not self.allOk():
+            print("No response from broker to device " + str(self.ID))
+            self.startElection(False)
+
+    #Simulates a device subscribing to an MQTT topic
+    def subscribeToTopic(self, topic):
+        messageArray = [str(self.ID), topic, "SUBSCRIBE", topic]
+        self.network.sendMessage(self, self.broker, messageArray)
+
     #Sends a message to the broker that can be handled by any device that should handle such messages
     def sendMessage(self, message):
         thisMessageID = messageID
@@ -88,32 +114,86 @@ class IOT_Device:
             if m_id == thisMessageID:
                 self.startElection(False)
 
+    #This is done for any direct message received by a broker
+    def forwardMessage(self, message):
+        #If the device is in the list, send it
+        for devList in self.deviceList:
+            if devList[0][0] == message[1]:
+                self.network.sendMessage(self, devList[0][1], message)
+            else:
+                #If the device is in a sublist, forward to the broker of that list
+                for dev in devList:
+                    if dev[0] == message[1]:
+                        self.network.sendMessage(self, devList[0][1], message)
+
+    #Returns a reference to another device (simulation a socket connection)
+    def getDevice(self, devID):
+        for dev in self.deviceList:
+            if dev[0][0] == devID:
+                return dev[0][1]
+
+    #Scrapes the subscribers tuples and gets references to all devices subscribed to the topic
+    def getSubscribersForTopic(self, topic):
+        subList = []
+        for dev in self.subscribers:
+            if dev[0] == topic:
+                subList.append(dev[1])
+        return subList
+
+    #Simulates an MQTT device publishing a message to a list of subscribers
+    def publishToSubscribers(self, subscribers, message):
+        for sub in subscribers:
+            self.network.sendMessage(self, sub, message)
+
     #Function to handle the receipt of a message
     def receiveMessage(self, message):
         print("Received on " + str(self.ID) + ": " + str(message))
+        #Default kill message to break down threads and allow the network to clean up
         if message[2] == "KILL":
             self.kill_device = True
 
+        #If the device is a broker it needs to handle messages differently
         if self.isBroker:
-            #TODO the broker should pass the message to the correct broker or store it in its Queue if the message is for one of its devices
-            self.messagesQueue.insert(0, message)
+            #If the device is marked as a direct message, then it should be passed forward to the correct device
+            if (message[2] == "DIRECT"):
+                forwardMessage(message)
+            elif (message[2] == "SEARCH"):
+                sendMessage([str(self.ID), message[0], "IN-RANGE", "IN-RANGE"])
+            elif (message[2] == "PUBLISH"):
+                self.publishToSubscribers(self.getSubscribersForTopic(message[1]), message)
+                self.network.sendMessage(self, self.getDevice(message[0]), [str(self.ID), message[0], "OK", message[3]]) #Confirms that the broker received the message
+                for devL in self.deviceList:
+                    if len(devL) > 1: #Check for a broker list with subsequent devices, that broker may need to publish this message
+                        self.network.sendMessage(self, devL[0][1], [str(self.ID), devL[0][0], "PUBLISH-FORWARD", message[3]])
+            elif (message[2] == "PUBLISH-FORWARD"):
+                self.network.sendMessage(self, self.getDevice(message[0]), [str(self.ID), message[0], "OK", message[3]])
+                self.publishToSubscribers(self.getSubscribersForTopic(message[1]), message)
+                for devL in self.deviceList:
+                    if devL[0][0] != message[0] and len(devL) > 1:
+                        self.network.sendMessage(self, devL[0][1], [str(self.ID), devL[0][0], "PUBLISH-FORWARD", message[3]])
+            elif (message[2] == "SUBSCRIBE"):
+                devRef = self.network.getDevice(message[0])
+                self.subscribers.append((message[3], devRef))
+                self.network.sendMessage(self, devRef, [str(self.ID), message[0], "OK", message[3]])
         else:
             if message[2] == "ELECTION":
-                sendMessage([self.ID, message[0], "ELECTION_DATA", "VISIBLE"])
+                #TODO possibly send back information regarding signal strength or other prioity based values
+                sendMessage([str(self.ID), message[0], "ELECTION_DATA", "VISIBLE"])
+            elif message[2] == "IN-RANGE":
+                self.broker = self.network.getDevice(message[0])
+                self.broker.deviceList.append((str(self.ID), self))
+            elif message[2] == "OK":
+                self.clearFromQueue(message[3])
             elif message[2] == "COMMAND":
-                print("Doing command")
+                print("Doing command: " + message[3])
 
     #This is the device function, it continuosly polls the broker to check for messages
     def mainLoop(self):
         while True:
             if self.kill_device:
                 return
-
             if self.broker == None:
                 pass #Possibly set to find a new broker here
-            elif not self.isBroker and len(self.messagesQueue) > 0:
-                #TODO handle the messages passed to this device from the broker and reply if necessary
-                pass
             
 
     #TODO here is where our core algorithm should run
