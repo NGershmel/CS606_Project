@@ -15,6 +15,7 @@ class Network_Sim:
     #Adds a new device to the network during setup
     def addDevice(self, device_in):
         self.devices.append(device_in)
+        device_in.setNetwork(self)
 
     #Adds a device to the active network, must either elect a new broker or attach to an in-range broker
     def addDeviceLive(self, device_in):
@@ -32,13 +33,13 @@ class Network_Sim:
     #Gets a reference to the device based on ID
     def getDevice(self, device_id):
         int_id = int(device_id)
-        for d in self.devcies:
+        for d in self.devices:
             if (d.ID == int_id):
                 return d
         return None
 
     #Simulates sending a message from a device to its broker
-    def sendMessage(self, message):
+    def sendMessageDirect(self, message):
         device = self.getDevice(message[0])
         if not device.isBroker and not device.broker == None:
             if nf.dropMessage(self.drop_level):
@@ -56,8 +57,10 @@ class Network_Sim:
             self.threads.append((False, dThread))
 
     #Simulates sending a message across a real network
-    def sendMessage(self, deviceFrom, deviceTo):
-        print("Sending message from " + deviceFrom.ID + " to " + deviceTo.ID)
+    def sendMessage(self, deviceFrom, deviceTo, message):
+        bThread = threading.Thread(target=deviceTo.receiveMessage, args=(message,))
+        bThread.start()
+        self.threads.append((False, bThread))
 
     #Simulates a device broadcasting a message across a real network
     def broadcastMessage(self, deviceFrom, message):
@@ -84,11 +87,14 @@ class Network_Sim:
                 t[1].join()
 
         #Information and menu
+        print("\n\n\n\n\n\n\n\n\n\n\n\n\n")
         print("Active IOT Devices:")
         for d in self.devices:
             print("Devcie ID: " + str(d.ID))
         print("1: Add device to network")
-        print("2: Send Command")
+        print("2: Simulate Direct Message")
+        print("3: Simulate Subscribe")
+        print("4: Simulate Publish")
         print("-1: Kill Simulation")
         val = input("")
         if val == "-1":
@@ -102,6 +108,22 @@ class Network_Sim:
             newDevice.locY = y
             newDevice.signalRange = r
             self.addDeviceLive(newDevice)
+        elif val == "2":
+            deviceFrom = input("Device sending message: ")
+            deviceTo = input("Device to send message to: ")
+            mType = input("Message Type: ")
+            message = input("Message: ")
+            self.sendMessage(getDevice(deviceFrom), getDevice(deviceTo), [deviceFrom, deviceTo, mType, message])
+        elif val == "3":
+            deviceFrom = input("Device to subscribe: ")
+            topic = input("Topic to subscribe to: ")
+        elif val=="4":
+            deviceFrom = input("Device to publish with: ")
+            topic = input("Topic to publish to: ")
+            message = input("Message: ")
+            deviceRef = self.getDevice(deviceFrom)
+            dThread = threading.Thread(target=deviceRef.publishToTopic, args=(topic, message,))
+            dThread.start()
 
     #Network mainloop
     def simulate(self):
@@ -121,15 +143,20 @@ class Network_Sim:
 
 #Set up an initial network to test with
 #TODO move to another function with parameters for number of devices
+n1 = Network_Sim()
 d1 = iot.IOT_Device()
 d2 = iot.IOT_Device()
+d3 = iot.IOT_Device()
 b1 = iot.IOT_Device()
+b1.setAsBroker()
 d1.setBroker(b1)
 d2.setBroker(b1)
-b1.setAsBroker()
-n1 = Network_Sim()
+d3.setBroker(b1)
 n1.addDevice(d1)
 n1.addDevice(d2)
+n1.addDevice(d3)
 n1.addDevice(b1)
+d2.subscribeToTopic("TestTopic")
+d1.subscribeToTopic("TestTopic")
 n1.simulate()
 print("Simulation Closed Properly")
