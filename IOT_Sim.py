@@ -205,6 +205,10 @@ class IOT_Device:
             time.sleep(2)
             if self.broker == None:
                 self.broadcastMessage([str(self.ID), "-1", "ELECTION", "VIABLE_BROKER"])
+                election()
+        else:
+            self.broadcastMessage([str(self.ID), "-1", "ELECTION", "VIABLE_BROKER"])
+            election()
         #If the flag is true the device should broadcast searching for a broker with its ID
             #All broker devices that are in range will return a message entitled (IN-RANGE:ID:BROKER)
                 #Here the ID is the ID of this device, in case multiple elections are running concurrently
@@ -214,3 +218,15 @@ class IOT_Device:
             #This version of the election algorithm should elevate another node to broker that is in range of this node
             #Find an in-range device that contacts the largest number of devices? and has contact to another broker
             #Verify against the main broker to see if there are out of range devices and attempt to find a device that can reach them
+    def election(self):
+        distance=[]
+        for d in self.devices:
+            distance.append(math.power(self.locX - d.locX, 2) + math.power(self.locY - d.locY, 2))
+            d.priority = distance 
+        neard = min(distance)
+        for d in self.device:
+            if (math.power(self.locX - d.locX, 2) + math.power(self.locY - d.locY, 2))>=d.priority:
+                d.setAsBroker()
+                self.setBroker(d)
+                break
+        
