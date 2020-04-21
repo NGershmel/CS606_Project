@@ -8,6 +8,9 @@ class Network_Sim:
     connections = []    #List of direct connections on the network, this should only be used for debugging purposes
     threads = []    #List of threads spawned by the network to simulate devices, tracked so they can be joined
 
+    drop_level = 0  #Percentage of messages that should be dropped in the network
+    corruption_level = 0 #Percentage of messages that should be corrupted in the network
+
     #Blank initialization function
     def __init__(self):
         self.name = "Network"
@@ -87,14 +90,18 @@ class Network_Sim:
                 t[1].join()
 
         #Information and menu
-        print("\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        print("\n\n\n")
         print("Active IOT Devices:")
         for d in self.devices:
-            print("Devcie ID: " + str(d.ID))
+            if d.isBroker:
+                print("Broker ID: " + str(d.ID))
+            else:
+                print("Device ID: " + str(d.ID))
         print("1: Add device to network")
         print("2: Simulate Direct Message")
         print("3: Simulate Subscribe")
         print("4: Simulate Publish")
+        print("5: Kill Device")
         print("-1: Kill Simulation")
         val = input("")
         if val == "-1":
@@ -117,6 +124,9 @@ class Network_Sim:
         elif val == "3":
             deviceFrom = input("Device to subscribe: ")
             topic = input("Topic to subscribe to: ")
+            deviceRef = self.getDevice(deviceFrom)
+            dThread = threading.Thread(target=deviceRef.subscribeToTopic, args=(topic,))
+            dThread.start()
         elif val=="4":
             deviceFrom = input("Device to publish with: ")
             topic = input("Topic to publish to: ")
@@ -124,6 +134,11 @@ class Network_Sim:
             deviceRef = self.getDevice(deviceFrom)
             dThread = threading.Thread(target=deviceRef.publishToTopic, args=(topic, message,))
             dThread.start()
+        elif val == "5":
+            devKill = input("Device ID to kill: ")
+            self.getDevice(devKill).receiveMessage(["-1", str(d.ID), "KILL", "KILL"])
+            self.devices.remove(self.getDevice(devKill))
+
 
     #Network mainloop
     def simulate(self):
