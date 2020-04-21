@@ -1,6 +1,7 @@
 import IOT_Sim as iot
 import threading
 import Network_Functions as nf
+import time
 
 #This class simulates an entire network
 class Network_Sim:
@@ -88,6 +89,7 @@ class Network_Sim:
         for t in self.threads:
             if not t[0]:
                 t[1].join()
+        time.sleep(2)
 
         #Information and menu
         print("\n\n\n")
