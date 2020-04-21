@@ -2,6 +2,7 @@ import IOT_Sim as iot
 import threading
 import Network_Functions as nf
 import time
+import random
 
 #This class simulates an entire network
 class Network_Sim:
@@ -62,6 +63,9 @@ class Network_Sim:
 
     #Simulates sending a message across a real network
     def sendMessage(self, deviceFrom, deviceTo, message):
+        if nf.dropMessage(self.drop_level):
+            return
+        message = nf.corrupt(message, self.corruption_level)
         bThread = threading.Thread(target=deviceTo.receiveMessage, args=(message,))
         bThread.start()
         self.threads.append((False, bThread))
@@ -160,6 +164,7 @@ class Network_Sim:
 
 #Set up an initial network to test with
 #TODO move to another function with parameters for number of devices
+random.seed()
 n1 = Network_Sim()
 d1 = iot.IOT_Device()
 d2 = iot.IOT_Device()
