@@ -29,4 +29,6 @@ def corrupt(message, threshold):
 
 #Computes the strength of a signal between 2 devices
 def signalStrength(deviceOne, deviceTwo):
+    if (deviceOne.locX - deviceTwo.locX) + (deviceOne.locY - deviceTwo.locY) == 0:
+        return 999999
     return 1 / (math.sqrt(math.pow(deviceOne.locX - deviceTwo.locX, 2) + math.pow(deviceOne.locY - deviceTwo.locY, 2)))

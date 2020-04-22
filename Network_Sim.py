@@ -90,20 +90,25 @@ class Network_Sim:
     def simulateCommands(self):
         #This loops finishes all active simulation scenarios before allowing the user to introduce more
         print("Simulating...")
+        time.sleep(2)
         for t in self.threads:
             if not t[0]:
                 t[1].join()
-        time.sleep(2)
-
+        
         #Information and menu
         print("\n\n\n")
         print("Active IOT Devices:")
         for d in self.devices:
             if d.isBroker:
-                print("Broker ID: " + str(d.ID))
+                print(d.name + " - Broker (" + str(d.ID) + ") [" + str(d.locX) + "," + str(d.locY) + "] >" + str(d.signalRange) + "<")
+                for dList in d.deviceList:
+                    print("    ->" + dList[0][0])
             else:
-                print("Device ID: " + str(d.ID))
-        print("1: Add device to network")
+                if d.broker == None:
+                    self.devices.remove(d)
+                else:
+                    print(d.name + " (" + str(d.ID) + ") [" + str(d.locX) + "," + str(d.locY) + "] >" + str(d.signalRange) + "<")
+        print("\n\n1: Add device to network")
         print("2: Simulate Direct Message")
         print("3: Simulate Subscribe")
         print("4: Simulate Publish")
@@ -116,7 +121,8 @@ class Network_Sim:
             x = float(input("X Location: "))
             y = float(input("Y Location: "))
             r = float(input("Signal Range: "))
-            newDevice = iot.IOT_Device()
+            n = input("Name for this device: ")
+            newDevice = iot.IOT_Device(n)
             newDevice.locX = x
             newDevice.locY = y
             newDevice.signalRange = r
@@ -166,19 +172,31 @@ class Network_Sim:
 #TODO move to another function with parameters for number of devices
 random.seed()
 n1 = Network_Sim()
-d1 = iot.IOT_Device()
-d2 = iot.IOT_Device()
-d3 = iot.IOT_Device()
-b1 = iot.IOT_Device()
-b1.setAsBroker()
-d1.setBroker(b1)
-d2.setBroker(b1)
-d3.setBroker(b1)
+d1 = iot.IOT_Device("Thermometer")
+d1.locX = -1.0
+d1.locY = 1.0
+d1.signalRange = 4.0
+d2 = iot.IOT_Device("Thermostat")
+d2.locX = -1.0
+d2.locY = 0.0
+d2.signalRange = 4.0
+d3 = iot.IOT_Device("Clock")
+d3.locX = -1.0
+d3.locY = -1.0
+d3.signalRange = 4.0
+b1 = iot.IOT_Device("Echo Dot")
+b1.locX = 0.0
+b1.locY = 0.0
+b1.signalRange = 3.0
 n1.addDevice(d1)
 n1.addDevice(d2)
 n1.addDevice(d3)
 n1.addDevice(b1)
-d2.subscribeToTopic("TestTopic")
-d1.subscribeToTopic("TestTopic")
+b1.setAsBroker()
+d1.setBroker(b1)
+d2.setBroker(b1)
+d3.setBroker(b1)
+d2.subscribeToTopic("Home/Temperature")
+d1.subscribeToTopic("Home/Temperature")
 n1.simulate()
 print("Simulation Closed Properly")
