@@ -10,7 +10,7 @@ class Network_Sim:
     connections = []    #List of direct connections on the network, this should only be used for debugging purposes
     threads = []    #List of threads spawned by the network to simulate devices, tracked so they can be joined
 
-    drop_level = 0  #Percentage of messages that should be dropped in the network
+    drop_level = 50  #Percentage of messages that should be dropped in the network
     corruption_level = 0 #Percentage of messages that should be corrupted in the network
 
     #Blank initialization function
@@ -45,27 +45,27 @@ class Network_Sim:
 
     #Simulates sending a message from a device to its broker
     def sendMessageDirect(self, message):
-        device = self.getDevice(message[0])
+        device = self.getDevice(message[1])
         if not device.isBroker and not device.broker == None:
-            if nf.dropMessage(self.drop_level):
+            if nf.dropMessage(self.drop_level, nf.signalStrength(self.getDevice(message[0]), device)):
                 return
-            message = nf.corrupt(message, self.corruption_level)
+            message = nf.corrupt(message, self.corruption_level, nf.signalStrength(self.getDevice(message[0]), device))
             bThread = threading.Thread(target=device.broker.receiveMessage, args=(message,))
             bThread.start()
             self.threads.append((False, bThread))
         elif nf.inRange(device, self.getDevice(message[1])):
-            if nf.dropMessage(self.drop_level):
+            if nf.dropMessage(self.drop_level, nf.signalStrength(self.getDevice(message[0]), device)):
                 return
-            message = nf.corrupt(message, self.corruption_level)
+            message = nf.corrupt(message, self.corruption_level, nf.signalStrength(self.getDevice(message[0]), device))
             dThread = threading.Thread(target=self.getDevice(message[1]).receiveMessage, args=(message,))
             dThread.start()
             self.threads.append((False, dThread))
 
     #Simulates sending a message across a real network
     def sendMessage(self, deviceFrom, deviceTo, message):
-        if nf.dropMessage(self.drop_level):
+        if nf.dropMessage(self.drop_level, nf.signalStrength(deviceFrom, deviceTo)):
             return
-        message = nf.corrupt(message, self.corruption_level)
+        message = nf.corrupt(message, self.corruption_level, nf.signalStrength(deviceFrom, deviceTo))
         bThread = threading.Thread(target=deviceTo.receiveMessage, args=(message,))
         bThread.start()
         self.threads.append((False, bThread))
@@ -75,9 +75,10 @@ class Network_Sim:
         print(str(deviceFrom.ID) + " is broadcasting " + str(message))
         for d in self.devices:
             if not d == deviceFrom and nf.inRange(deviceFrom, d):
-                dThread = threading.Thread(target=d.receiveMessage, args=(message,))
-                dThread.start()
-                self.threads.append((False, dThread))
+                if not nf.dropMessage(self.drop_level, nf.signalStrength(deviceFrom, d)):
+                    dThread = threading.Thread(target=d.receiveMessage, args=(message,))
+                    dThread.start()
+                    self.threads.append((False, dThread))
 
     #Simulation only broadcast, used for debugging and forcing network changes
     def broadcastMessageFromNetwork(self, message):
@@ -175,28 +176,59 @@ n1 = Network_Sim()
 d1 = iot.IOT_Device("Thermometer")
 d1.locX = -1.0
 d1.locY = 1.0
-d1.signalRange = 4.0
+d1.signalRange = 1.5
 d2 = iot.IOT_Device("Thermostat")
 d2.locX = -1.0
 d2.locY = 0.0
-d2.signalRange = 4.0
+d2.signalRange = 1.5
+'''
 d3 = iot.IOT_Device("Clock")
 d3.locX = -1.0
 d3.locY = -1.0
-d3.signalRange = 4.0
+d3.signalRange = 1.5
+'''
 b1 = iot.IOT_Device("Echo Dot")
 b1.locX = 0.0
 b1.locY = 0.0
-b1.signalRange = 3.0
+b1.signalRange = 6.0
+d4 = iot.IOT_Device("Bulb 1")
+d4.locX = -3.0
+d4.locY = 1.0
+d4.signalRange = 5.0
+d5 = iot.IOT_Device("Bulb 2")
+d5.locX = -3.0
+d5.locY = 0.0
+d5.signalRange = 5.0
+d6 = iot.IOT_Device("Bulb 3")
+d6.locX = -3.0
+d6.locY = -1.0
+d6.signalRange = 5.0
+b2 = iot.IOT_Device("Home Mini")
+b2.locX = -2.0
+b2.locY = 0.0
+b2.signalRange = 2.2
 n1.addDevice(d1)
 n1.addDevice(d2)
-n1.addDevice(d3)
 n1.addDevice(b1)
 b1.setAsBroker()
 d1.setBroker(b1)
 d2.setBroker(b1)
-d3.setBroker(b1)
-d2.subscribeToTopic("Home/Temperature")
-d1.subscribeToTopic("Home/Temperature")
+'''n1.addDevice(d3)
+n1.addDevice(b1)
+n1.addDevice(d4)
+n1.addDevice(d5)
+n1.addDevice(d6)
+n1.addDevice(b2)
+b2.setAsBroker()
+d4.setBroker(b1)
+d5.setBroker(b1)
+d6.setBroker(b1)
+b2.setBroker(b1)
+d1.subscribeToTopic("Home/Time")
+d2.subscribeToTopic("Home/Time")
+d3.subscribeToTopic("Home/Time")
+d4.subscribeToTopic("Home/Time")
+d5.subscribeToTopic("Home/Time")
+d6.subscribeToTopic("Home/Time")'''
 n1.simulate()
 print("Simulation Closed Properly")

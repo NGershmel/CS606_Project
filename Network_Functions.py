@@ -14,13 +14,13 @@ def inRange(deviceOne, deviceTwo):
     return False
 
 #Simulates randomly dropping messages
-def dropMessage(threshold):
-    value = random.randrange(100)
+def dropMessage(threshold, signal):
+    value = random.randrange(100) * signal
     return value < threshold
 
 #Simulates randomly losing or corrupting data over a network
-def corrupt(message, threshold):
-    value = random.randrange(100)
+def corrupt(message, threshold, signal):
+    value = random.randrange(100) * signal
     if (value < threshold):
         portion = random.randrange(4)
         position = random.randrange(len(message[portion]))

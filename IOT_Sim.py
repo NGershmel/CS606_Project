@@ -59,8 +59,12 @@ class IOT_Device:
     #Additionally, the broker will be where this device retrieves messages from
     def setBroker(self, broker_in):
         self.broker = broker_in
-        broker_in.addConnection(self.ID)
-
+        if (self.isBroker):
+            myList = self.flattenList()
+            self.deviceList.append(self.broker.flattenList())
+            self.broker.deviceList.append(myList)
+        else:
+            broker_in.addConnection(self.ID)
     #Sets this device as a broker
     def setAsBroker(self):
         self.isBroker = True
@@ -217,7 +221,6 @@ class IOT_Device:
                 pass #Possibly set to find a new broker here
             
 
-    #TODO here is where our core algorithm should run
     #The flag will be true if the device is a new device attempting to find a broker
     def startElection(self, flag):
         #Example of newly added device searching for a broker
